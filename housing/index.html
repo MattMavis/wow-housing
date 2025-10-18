@@ -438,31 +438,39 @@
 
         function saveInterested() {
             // Try server save first; fallback to localStorage
-            try {
-                // ensure payload is an object (not an array) before sending
-                const payloadInterested = Array.isArray(housingInterestedByMap) ? {} : housingInterestedByMap;
-                // Mirror to localStorage right away so other tabs pick up the change
+            fetch('api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'save_interested', payload: payloadInterested })
+            })
+            .then(async r => {
+                const text = await r.text();
+                console.debug('save_interested raw response:', r.status, r.headers.get('content-type'), text);
+                if (!r.ok) {
+                    // server returned error HTML or plain text; treat as failure
+                    throw new Error(`HTTP ${r.status}: ${text}`);
+                }
+                // try to parse JSON, but wrap so we can log invalid payload
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.warn('Invalid JSON from server:', e);
+                    throw e;
+                }
+            })
+            .then(res => {
+                console.log('save_interested server response:', res);
+                if (res && res.ok) {
+                    console.log('Saved interested map data to server');
+                } else {
+                    localStorage.setItem('housing_interested_by_map', JSON.stringify(housingInterestedByMap));
+                    console.warn('Server save_interested returned error, saved locally instead', res);
+                }
+            })
+            .catch(err => {
+                console.warn('Server save_interested failed, saving to localStorage', err);
                 try { localStorage.setItem('housing_interested_by_map', JSON.stringify(housingInterestedByMap)); } catch (e) {}
-                fetch('api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'save_interested', payload: payloadInterested })
-                }).then(r => r.json()).then(res => {
-                    console.log('save_interested server response:', res);
-                    if (res && res.ok) {
-                        console.log('Saved interested map data to server');
-                    } else {
-                        // fallback
-                        localStorage.setItem('housing_interested_by_map', JSON.stringify(housingInterestedByMap));
-                        console.warn('Server save_interested returned error, saved locally instead', res);
-                    }
-                }).catch(err => {
-                    console.warn('Server save_interested failed, saving to localStorage', err);
-                    try { localStorage.setItem('housing_interested_by_map', JSON.stringify(housingInterestedByMap)); } catch (e) {}
-                });
-            } catch (e) {
-                try { localStorage.setItem('housing_interested_by_map', JSON.stringify(housingInterestedByMap)); } catch (e2) {}
-            }
+            });
         }
 
 // Debounced variant to avoid frequent saves on rapid user input

@@ -2,27 +2,26 @@
 // Do not force a JSON header here; choose per-request so opening this URL in a browser
 // (which typically accepts text/html) does not produce a MIME-type warning.
 // Must be before any output
-header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: https://wow-housing.pages.dev'); // or '*' for testing
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-Requested-With, Authorization');
-header('Access-Control-Max-Age: 86400');
 
-// Debug logging (server error log)
-error_log("api.php invoked METHOD=" . ($_SERVER['REQUEST_METHOD'] ?? ''));
-error_log("REQUEST_URI=" . ($_SERVER['REQUEST_URI'] ?? ''));
-
-// Immediately handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit();
 }
 
-// If PHP never receives POST this block will not run — curl bypass to origin will confirm
+// disable display of warnings in output (log instead) to avoid corrupting JSON
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+// Your normal POST handling should echo only JSON, for example:
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw = file_get_contents('php://input');
-    error_log("api.php POST body: " . substr($raw, 0, 1000));
-    header('Content-Type: application/json');
-    echo json_encode(['ok' => true, 'msg' => 'received POST']);
+    $body = json_decode($raw, true);
+    // ... handle action ...
+    echo json_encode(['ok' => true]);
     exit();
 }
 
